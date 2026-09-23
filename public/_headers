@@ -1,0 +1,9 @@
+/*
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+/config.json
+  Cache-Control: no-store
+/index.html
+  Cache-Control: no-cache

@@ -2,10 +2,28 @@ import './style.css';
 import { createClient } from '@supabase/supabase-js';
 import { money, cents, summary, validateExpense } from './finance.js';
 import { demoData } from './demo.js';
+import { validatePin, normalizeUsername, activationFromHash } from './pin.js';
 const app = document.querySelector('#app');
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const db = url && key ? createClient(url, key) : null;
+let runtime={};
+try { const response=await fetch('/config.json',{cache:'no-store'}); if(response.ok)runtime=await response.json(); } catch { /* Show setup message below. */ }
+const url = import.meta.env.VITE_SUPABASE_URL || runtime.supabaseUrl;
+const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || runtime.publishableKey;
+let remember=localStorage.getItem('home-remember')==='true';
+const storage={
+ getItem:k=>localStorage.getItem(k)||sessionStorage.getItem(k),
+ setItem:(k,v)=>{(remember?sessionStorage:localStorage).removeItem(k);(remember?localStorage:sessionStorage).setItem(k,v);},
+ removeItem:k=>{localStorage.removeItem(k);sessionStorage.removeItem(k);}
+};
+const db = url && key ? createClient(url,key,{auth:{storage,detectSessionInUrl:false}}) : null;
+let activation=null,activationError='';
+try{activation=activationFromHash(location.hash);}catch(e){activationError=e.message;}
+if(location.hash.includes('activate='))history.replaceState(null,'',location.pathname+location.search);
+async function pinRequest(payload,accessToken){
+ const response=await fetch(`${url}/functions/v1/pin-auth`,{method:'POST',headers:{'Content-Type':'application/json',apikey:key,...(accessToken?{Authorization:`Bearer ${accessToken}`}:{})},body:JSON.stringify(payload)});
+ const result=await response.json().catch(()=>({error:'El servidor no respondió correctamente.'}));
+ if(!response.ok)throw new Error(result.error||'No fue posible completar el acceso.');
+ return result;
+}
 let demo = false, session = null, page = 'Inicio', data = null, busy = false, banner = '';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -13,9 +31,20 @@ const dateLabel = s => new Date(`${s}T12:00:00`).toLocaleDateString('es-MX',{day
 const brand = '<div class="brand"><span class="brand-mark">⌂</span>home<span>·</span></div>';
 const categories = ['Despensa','Higiene personal','Limpieza del hogar','Servicios','Entretenimiento','Servicio de limpieza','Otros'];
 function authScreen(message='') {
- app.innerHTML=`<section class="auth card">${brand}<span class="eyebrow">Finanzas en equipo</span><h1>Un hogar,<br>un buen plan.</h1><p class="muted">Tu presupuesto, tus pagos y tus compras, en un mismo lugar.</p>${message?`<p class="notice error" role="alert">${esc(message)}</p>`:''}${db?`<form id="login"><label>Correo electrónico<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="full">Entrar a mi hogar</button></form><p class="subtle muted">Acceso para cuentas previamente habilitadas.</p>`:'<p class="notice">Conexión pendiente de configurar. Puedes explorar la demostración.</p>'}<button id="demo" class="secondary full">Explorar demostración</button><p class="subtle muted">La demostración usa datos ficticios. Los cambios desaparecen al salir o recargar.</p></section>`;
- document.querySelector('#demo').onclick=()=>{demo=true;data=demoData();page='Inicio';render();};
- document.querySelector('#login')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);const b=e.target.querySelector('button');b.disabled=true;b.textContent='Entrando…';try{const {data:result,error}=await db.auth.signInWithPassword({email:f.get('email'),password:f.get('password')});if(error)throw error;session=result.session;await load();}catch{authScreen('No fue posible entrar. Revisa tus datos y la conexión.');}});
+ const activating=Boolean(activation);
+ app.innerHTML=`<section class="auth card">${brand}<span class="eyebrow">Finanzas en equipo</span><h1>${activating?'Elige tu PIN.':'Un hogar,<br>un buen plan.'}</h1><p class="muted">${activating?'Activa tu acceso personal con cuatro números. Este enlace solo puede utilizarse una vez.':'Entra con tu usuario y PIN para organizar las finanzas de tu hogar.'}</p>${message||activationError?`<p class="notice error" role="alert">${esc(message||activationError)}</p>`:''}${db?`<form id="login"><label>Usuario<input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required value="${esc(activation?.username||localStorage.getItem('home-last-user')||'')}" ${activating?'readonly':''}></label><label>${activating?'Elige un PIN de 4 números':'PIN de 4 números'}<input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="${activating?'new-password':'current-password'}" required></label>${activating?'<label>Repite tu PIN<input type="password" name="confirm" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required></label>':''}<label class="remember"><input type="checkbox" name="remember" ${remember?'checked':''}> Mantener sesión en este dispositivo</label><button class="full">${activating?'Activar mi acceso':'Entrar a mi hogar'}</button></form><p class="subtle muted">${activating?'El PIN se guarda protegido en el servidor.':'¿Es tu primer acceso? Abre tu enlace privado de activación. Si olvidaste tu PIN, solicita un nuevo enlace de recuperación al administrador.'}</p>`:'<p class="notice">Conexión pendiente de configurar. Puedes explorar la demostración.</p>'}<button id="demo" class="secondary full">${activating?'Volver al inicio':'Explorar demostración'}</button>${activating?'':'<p class="subtle muted">La demostración usa datos ficticios. Los cambios desaparecen al salir o recargar.</p>'}</section>`;
+ document.querySelector('#demo').onclick=()=>{if(activating){activation=null;authScreen();return;}demo=true;data=demoData();page='Inicio';render();};
+ document.querySelector('#login')?.addEventListener('submit',async e=>{
+  e.preventDefault();const f=new FormData(e.target);const b=e.target.querySelector('button');b.disabled=true;b.textContent=activating?'Activando…':'Entrando…';
+  try{
+   const username=normalizeUsername(f.get('username'));const pin=validatePin(f.get('pin'));
+   if(activating&&pin!==f.get('confirm'))throw new Error('Los PIN no coinciden.');
+   remember=f.get('remember')==='on';localStorage.setItem('home-remember',String(remember));
+   const result=await pinRequest({action:activating?'activate':'login',username,pin,...(activating?{token:activation.token}:{})});
+   const {data:auth,error}=await db.auth.setSession(result.session);if(error)throw error;
+   session=auth.session;activation=null;activationError='';localStorage.setItem('home-last-user',username);demo=false;page='Inicio';await load();
+  }catch(error){authScreen(error.message||'No fue posible entrar. Revisa la conexión.');}
+ });
 }
 async function readAll(table, householdId) {
  const rows=[];
@@ -41,13 +70,14 @@ function render(){if(!data)return;const pages=[['Inicio','⌂'],['Movimientos','
  else if(page==='Movimientos')content.innerHTML=`<section class="card table-wrap"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Fondo</th><th>Medio</th><th>Importe</th></tr></thead><tbody>${expenseRows()}</tbody></table>${data.expenses.length?'':'<div class="empty">Todavía no hay gastos registrados.</div>'}</section>`;
  else if(page==='Pagos')content.innerHTML=`<p class="notice">Esta entrega permite reservar y pagar compromisos individuales. Las recurrencias y los recibos variables se incorporarán en la siguiente etapa.</p><section class="card">${bills()}</section>`;
  else if(page==='Resumen')content.innerHTML=`<section class="card"><h2>Gastos registrados por categoría</h2>${categories.map(c=>({c,v:data.expenses.filter(e=>e.category===c).reduce((s,e)=>s+e.amount_cents,0)})).filter(x=>x.v).map(x=>`<div class="row"><span>${esc(x.c)}</span><strong>${money(x.v)}</strong></div>`).join('')||'<div class="empty">Sin gastos para resumir.</div>'}<p class="subtle muted">Resumen de todos los movimientos cargados. Los cierres por periodo y el ahorro todavía no están habilitados.</p></section>`;
- else if(page==='Configuración')content.innerHTML=`<section class="card"><h2>Conexión y alcance</h2><p>Modo: <strong>${demo?'demostración temporal':'Supabase'}</strong></p><p>Fondos, membresías y saldos iniciales se habilitan durante la configuración del hogar. No existe registro público de usuarios en esta interfaz.</p><p class="muted">Próxima etapa: montos por periodo, calendario de depósitos, cierres automáticos y notificaciones.</p><button class="secondary" id="refresh">Actualizar datos</button></section>`;
+ else if(page==='Configuración')content.innerHTML=`<section class="card"><h2>Conexión y alcance</h2><p>Modo: <strong>${demo?'demostración temporal':'Supabase'}</strong></p><p>Fondos, membresías y saldos iniciales se habilitan durante la configuración del hogar. No existe registro público de usuarios en esta interfaz.</p><p class="muted">Próxima etapa: montos por periodo, calendario de depósitos, cierres automáticos y notificaciones.</p><button class="secondary" id="refresh">Actualizar datos</button> ${demo?'':'<button id="change-pin">Cambiar mi PIN</button>'}</section>`;
  else content.innerHTML=`<section class="card placeholder"><span class="row-icon">${page==='Comprar'?'▱':'▤'}</span><h2 style="margin-top:24px">${page==='Comprar'?'La lista de compras, en equipo':'Todo lo que tienes, a la vista'}</h2><p class="muted">${page==='Comprar'?'Próxima entrega: lista compartida, carrito con precios y confirmación de compra.':'Próxima entrega: existencias por unidad, consumo y alertas de reposición.'}</p><span class="pill">En desarrollo</span></section>`;
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{page=b.dataset.nav;banner='';render();});document.querySelector('#logout').onclick=logout;
  document.querySelector('#add-expense')?.addEventListener('click',()=>openForm('expense'));
  document.querySelector('#add-reservation')?.addEventListener('click',()=>openForm('reservation'));
  document.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>openForm('expense',data.reservations.find(r=>r.id===b.dataset.pay)));
  document.querySelector('#refresh')?.addEventListener('click',()=>demo?render():load());
+ document.querySelector('#change-pin')?.addEventListener('click',changePin);
 }
 function openForm(type,reservation=null){if(!data.funds.length){banner='Primero deben configurarse los fondos del hogar.';render();return;}const isExpense=type==='expense';const dialog=document.createElement('dialog');dialog.innerHTML=`<h2>${reservation?'Registrar pago':isExpense?'Registrar gasto':'Reservar un pago'}</h2><p class="muted">${reservation?'El pago sustituye la reserva, sin descontar dos veces.':isExpense?'Los gastos se descuentan del fondo seleccionado.':'La reserva aparta dinero; todavía no es un gasto.'}</p><form id="entry"><div class="form-grid"><label class="wide">Concepto<input name="description" maxlength="160" required value="${esc(reservation?.description||'')}"></label><label>Importe (MXN)<input name="amount" type="number" min="0.01" max="1000000" step="0.01" inputmode="decimal" required value="${reservation?reservation.amount_cents/100:''}" ${reservation?'readonly':''}></label><label>${isExpense?'Fecha del gasto':'Vencimiento'}<input name="date" type="date" value="${today()}" ${isExpense?`max="${today()}"`:''} required></label><label>Fondo<select name="fund" ${reservation?'disabled':''}>${data.funds.map(f=>`<option value="${esc(f.id)}" ${reservation?.fund_id===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label>${isExpense?`<label>Medio de pago<select name="method"><option value="card">Tarjeta</option><option value="cash">Efectivo</option></select></label><label class="wide">Categoría<select name="category">${categories.map(c=>`<option>${c}</option>`).join('')}</select></label>`:''}</div><p id="form-error" class="notice error" role="alert" hidden></p><div class="actions"><button type="button" class="secondary" id="cancel">Cancelar</button><button type="submit">${isExpense?'Guardar gasto':'Reservar'}</button></div></form>`;
  document.body.append(dialog);dialog.showModal();dialog.addEventListener('close',()=>dialog.remove());dialog.querySelector('#cancel').onclick=()=>dialog.close();const form=dialog.querySelector('form');
@@ -58,7 +88,17 @@ function openForm(type,reservation=null){if(!data.funds.length){banner='Primero 
  dialog.close();banner='';if(demo)render();else await load();
  }catch(error){errorBox.hidden=false;errorBox.textContent=error.code==='23505'?'Este movimiento ya está registrado. Cierra y actualiza los datos.':error.message||'No se pudo guardar. Intenta nuevamente.';}finally{busy=false;b.disabled=false;b.textContent=isExpense?'Guardar gasto':'Reservar';}};
 }
+function changePin(){
+ const dialog=document.createElement('dialog');dialog.innerHTML=`<h2>Cambiar mi PIN</h2><form><label>Usuario<input name="username" value="${esc(localStorage.getItem('home-last-user')||'')}" autocomplete="username" required></label><label>PIN actual<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" required></label><label>Nuevo PIN<input name="newPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required></label><label>Repite el nuevo PIN<input name="confirm" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required></label><p class="notice error" hidden role="alert"></p><div class="actions"><button class="secondary" type="button">Cancelar</button><button type="submit">Guardar nuevo PIN</button></div></form>`;
+ document.body.append(dialog);dialog.showModal();dialog.addEventListener('close',()=>dialog.remove());dialog.querySelector('[type="button"]').onclick=()=>dialog.close();
+ dialog.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=dialog.querySelector('[type="submit"]');b.disabled=true;const f=new FormData(e.target);try{
+  const newPin=validatePin(f.get('newPin'));if(newPin!==f.get('confirm'))throw new Error('Los PIN no coinciden.');
+  const {data:auth,error}=await db.auth.getSession();if(error||!auth.session)throw new Error('Inicia sesión de nuevo.');
+  await pinRequest({action:'change',username:normalizeUsername(f.get('username')),pin:validatePin(f.get('pin')),newPin},auth.session.access_token);
+  dialog.close();banner='';render();const note=document.createElement('p');note.className='notice success';note.textContent='Tu PIN fue actualizado.';document.querySelector('#content').prepend(note);
+ }catch(error){const note=dialog.querySelector('[role="alert"]');note.hidden=false;note.textContent=error.message;}finally{b.disabled=false;}};
+}
 window.addEventListener('offline',()=>{banner='Sin conexión. No podrás guardar cambios hasta recuperar internet.';if(data)render();});
 window.addEventListener('online',()=>{banner='';if(session&&!demo)load();else if(data)render();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&session&&!demo&&!document.querySelector('dialog'))load();});
-if(db){const {data:auth}=await db.auth.getSession();session=auth.session;if(session)await load();else authScreen();}else authScreen();
+if(db){const {data:auth}=await db.auth.getSession();session=auth.session;if(session&&!activation&&!activationError)await load();else authScreen();}else authScreen();
