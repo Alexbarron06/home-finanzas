@@ -98,6 +98,7 @@ function changePin(){
   dialog.close();banner='';render();const note=document.createElement('p');note.className='notice success';note.textContent='Tu PIN fue actualizado.';document.querySelector('#content').prepend(note);
  }catch(error){const note=dialog.querySelector('[role="alert"]');note.hidden=false;note.textContent=error.message;}finally{b.disabled=false;}};
 }
+window.addEventListener('hashchange',()=>{if(!location.hash.includes('activate='))return;activationError='';try{activation=activationFromHash(location.hash);}catch(error){activation=null;activationError=error.message;}history.replaceState(null,'',location.pathname+location.search);demo=false;authScreen();});
 window.addEventListener('offline',()=>{banner='Sin conexión. No podrás guardar cambios hasta recuperar internet.';if(data)render();});
 window.addEventListener('online',()=>{banner='';if(session&&!demo)load();else if(data)render();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&session&&!demo&&!document.querySelector('dialog'))load();});
