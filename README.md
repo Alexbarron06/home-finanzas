@@ -1,6 +1,6 @@
 # Home Finanzas
 
-Primera entrega: interfaz adaptable, acceso con usuario y PIN en Supabase, fondos, gastos, reservas individuales y resumen por categoría. Incluye demostración temporal con datos ficticios.
+Versión 0.2: acceso con usuario y PIN, fondos, gastos editables con historial, inventario exacto, reposición automática y compras compartidas. Incluye demostración temporal con datos ficticios.
 
 ## Desarrollo
 
@@ -43,9 +43,9 @@ Ningún dato financiero real debe guardarse en el repositorio. El histórico ant
 
 - Reservar no crea un gasto; pagar una reserva crea un gasto vinculado y deja de considerarla pendiente.
 - Un índice único impide pagar dos veces la misma reserva. Cada formulario reutiliza un UUID durante reintentos.
-- Gastos y reservas son registros de solo adición; correcciones y cancelaciones vendrán en la siguiente entrega.
-- Los datos se actualizan al entrar, guardar, recuperar conexión y volver a la pestaña; la sincronización Realtime todavía no está implementada.
-- Pendiente: configuración editable, recibos variables, recurrencias, calendario y cierres, ahorro, inventario, carrito compartido, instalación PWA y notificaciones.
+- En Movimientos, Modificar permite corregir fecha, monto, concepto, categoría y medio del gasto. Se conserva el fondo y la relación con el pago original. Cada corrección queda en Historial, con autor, fecha y valores antes/después. Cambiar el monto de una compra no cambia cantidades de inventario.
+- Realtime sincroniza gastos, inventario y lista entre dispositivos. Los formularios abiertos conservan lo escrito; si otro usuario cambió el registro, el guardado exige revisar la versión actual. La etiqueta En vivo refleja la conexión y Actualizar datos permite recuperar el estado.
+- Pendiente: configuración financiera editable, recibos variables, recurrencias, calendario y cierres, ahorro, instalación PWA y notificaciones al celular.
 - La demostración vive en memoria; no usarla para capturar gastos reales.
 - No hay modo offline de escritura ni registro público de cuentas.
 
@@ -60,3 +60,19 @@ Siete pruebas unitarias y compilación correctas. Quince comprobaciones contra e
 Las tablas del esquema privado son exclusivas del servidor. El asesor de Supabase también informa que la [protección contra contraseñas filtradas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) está desactivada; las contraseñas internas de Auth se generan aleatoriamente y el PIN se valida en el endpoint propio, con límites de intentos. No se afirma que esa opción de Auth proteja el PIN.
 
 Interfaz verificada en navegador a 1440 px y 390 px: captura de gasto en demo, formulario de PIN, validación de confirmación, activación desde una pestaña ya abierta y eliminación del fragmento del enlace. Sin errores de JavaScript ni desbordamiento horizontal en móvil.
+
+
+## Inventario y compras
+
+- Crear productos con categoría, unidad, existencias iniciales, mínimo y objetivo. Las cantidades admiten hasta tres decimales.
+- Registrar consumo, desperdicio o corrección de existencia. No se permiten existencias negativas. Consultar movimientos por producto.
+- Al llegar al mínimo se añade la diferencia hasta el objetivo, sin duplicar el producto. Las cantidades manuales y los productos ya en carrito no se sobrescriben.
+- La lista permite editar cantidad, precio unitario y estado, y quitar renglones. Los precios pendientes se muestran como total parcial.
+- Confirmar compra guarda un solo gasto y agrega las cantidades al inventario, conservando lo no comprado. Reintentos y confirmaciones simultáneas no duplican el gasto ni el inventario.
+- El esquema incremental está en `supabase/inventory-and-edits.sql`, ya aplicado. Las escrituras del inventario pasan por comandos transaccionales: no se conceden permisos de modificación directa a clientes. La función privilegiada está en un esquema privado, verifica la identidad y membresía, y serializa comandos por hogar.
+
+## Validación de inventario y correcciones
+
+13 pruebas unitarias. Pruebas contra Supabase con dos hogares temporales: reposición sin duplicados, conservación de cantidades manuales, consumo exacto, rechazo de inventario negativo, carrito obsoleto rechazado sin efectos parciales, confirmación concurrente idempotente, conservación de pendientes, corrección de fecha e importe con historial, conflicto entre correcciones simultáneas, aislamiento entre hogares y rechazo de escrituras directas y anónimas. Prueba de navegador: gasto corregido, historial, alta de producto, consumo y compra hasta actualizar existencias, sin errores de JavaScript ni desbordamiento a 390 px.
+
+Realtime verificado con una sesión autenticada: un cliente recibió el evento de producto creado desde otro cliente. Las cuentas, hogares y movimientos temporales de verificación se eliminaron al terminar; no se modificaron los datos del hogar real.
