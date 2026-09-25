@@ -20,6 +20,12 @@ export function demoCommand(data,action,x){
   const e=data.expenses.find(e=>e.id===x.id);if(!e||(e.revision||1)!==x.version)throw new Error('El gasto cambió. Actualiza.');
   const before=structuredClone(e);Object.assign(e,{description:x.description,amount_cents:x.amount_cents,occurred_on:x.occurred_on,method:x.method,category:x.category,revision:(e.revision||1)+1});data.expense_history.push({id:crypto.randomUUID(),expense_id:e.id,before_data:before,after_data:structuredClone(e),actor_name:'Demo',created_at:new Date().toISOString()});return e;
  }
+ if(action==='link_expense_items'){
+  const e=data.expenses.find(e=>e.id===x.expense_id);if(!e)throw new Error('Gasto no encontrado.');
+  if(data.inventory_events.some(v=>v.expense_id===e.id))throw new Error('Este gasto ya tiene productos vinculados.');
+  if(!x.lines.length||new Set(x.lines.map(l=>l.product_id)).size!==x.lines.length)throw new Error('Revisa los productos seleccionados.');
+  for(const l of x.lines){const p=data.products.find(p=>p.id===l.product_id);if(!p||l.quantity<=0)throw new Error('Producto o cantidad no válida.');p.on_hand=Math.round((p.on_hand+l.quantity)*1000)/1000;p.version++;event(p,l.quantity,'Vinculado a gasto',e.id);replenish(data,p);}return e;
+ }
  if(action==='product_save'){
   if(data.products.some(p=>p.name.trim().toLowerCase()===x.name.trim().toLowerCase()&&p.id!==x.id))throw new Error('Ya existe un producto con ese nombre.');
   let p=data.products.find(p=>p.id===x.id);

@@ -1,0 +1,1 @@
+export const categories = ['Despensa','Despensa · Frutas y verduras','Despensa · Carnes y pescado','Despensa · Lácteos y huevos','Despensa · Abarrotes','Despensa · Bebidas','Higiene personal','Limpieza del hogar','Servicios','Entretenimiento','Servicio de limpieza','Otros'];
