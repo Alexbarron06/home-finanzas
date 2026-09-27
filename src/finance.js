@@ -13,13 +13,17 @@ export function periodAt(anchor, date, length = 15) {
   const iso = ms => new Date(ms).toISOString().slice(0, 10);
   return {startsOn: iso(parse(anchor) + index * length * 86400000), nextOn: iso(parse(anchor) + (index + 1) * length * 86400000)};
 }
-export function summary(fund, expenses, reservations, periodEndExclusive) {
+export function summary(fund, expenses, reservations, periodEndExclusive, deposits = [], allocations = []) {
   const spent = expenses.filter(e => e.fund_id === fund.id).reduce((s, e) => s + e.amount_cents, 0);
+  const deposited = deposits.filter(e => e.fund_id === fund.id).reduce((s, e) => s + e.amount_cents, 0);
+  const allocated = allocations.reduce((s, e) => s + e.amount_cents, 0);
   const paid = new Set(expenses.map(e => e.reservation_id).filter(Boolean));
   // Past due bills stay reserved; a bill due in a later period is only a forecast.
   const reserved = reservations.filter(r => r.fund_id === fund.id && !paid.has(r.id) && (!periodEndExclusive || r.due_on < periodEndExclusive)).reduce((s, r) => s + r.amount_cents, 0);
-  const balance = fund.opening_cents - spent;
-  return {spent, reserved, balance, available: balance - reserved};
+  const balance = fund.opening_cents + deposited - spent - allocated;
+  const result = {spent, reserved, balance, available: balance - reserved};
+  if (deposits.length || allocations.length) Object.assign(result, {deposited, allocated});
+  return result;
 }
 export function validateExpense(expense, fund) {
   if (!fund) throw new Error('Selecciona un fondo.');

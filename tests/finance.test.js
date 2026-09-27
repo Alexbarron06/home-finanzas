@@ -15,3 +15,9 @@ test('October 2 belongs to the next period and does not reduce September 25 avai
  assert.deepEqual(summary(fund,paid,reservations,nextOn),{spent:140000,reserved:0,balance:460000,available:460000});
  assert.equal(periodAt('2026-09-14','2026-10-02').nextOn,'2026-10-14');
 });
+test('deposits add funds and weekly allocations reduce them once',()=>{
+ const fund={id:'salary',opening_cents:600000};
+ const deposits=[{fund_id:'salary',amount_cents:600000}];
+ const allocations=[{amount_cents:326700}];
+ assert.deepEqual(summary(fund,[],[],undefined,deposits,allocations),{spent:0,deposited:600000,allocated:326700,reserved:0,balance:873300,available:873300});
+});
