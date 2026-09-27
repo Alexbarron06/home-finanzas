@@ -1,7 +1,8 @@
 import {summary} from './finance.js';
 import {activeItems,quantity,lineTotal,cartTotal,demoCommand} from './inventory.js';
+import {stockStatus} from './stock-status.js';
 export function createWorkflows(ctx){
- const {esc,money,cents,today,validateExpense}=ctx;
+ const {esc,money,cents,today,validateExpense,categories}=ctx;
  const options=(arr,value)=>arr.map(c=>`<option ${c===value?'selected':''}>${esc(c)}</option>`).join('');
  const numeric=(name,label,value=0,min=0)=>`<label>${label}<input name="${name}" type="number" inputmode="decimal" min="${min}" max="1000000" step="0.001" value="${esc(value)}" required></label>`;
  async function command(action,payload){
