@@ -165,7 +165,7 @@ begin
     or (p.recurring_days is not null and (p.last_purchase_on is null or p.last_purchase_on+p.recurring_days<=current_date+3))
    );
   for product in select * from public.products where household_id=p_household loop
-   if not exists(select 1 from public.shopping_items where household_id=p_household and product_id=product.id and state in('suggested','planned','in_cart')) then
+   if not exists(select 1 from public.shopping_items si where si.household_id=p_household and si.product_id=product.id and si.state in('suggested','planned','in_cart')) then
     if product.on_hand=0 and product.target>0 then
      insert into public.shopping_items(household_id,list_id,product_id,quantity,estimated_unit_price_cents,fund_id,state,automatic,priority,reason)
      values(p_household,listid,product.id,greatest(product.target,product.usual_purchase_quantity),coalesce(product.estimated_unit_price_cents,product.last_unit_price_cents),product.usual_fund_id,'suggested',true,'necessary','Producto terminado');
@@ -213,7 +213,7 @@ begin
    select * into product from public.products where id=product_id and household_id=p_household;
    if not found then raise exception 'Producto no encontrado'; end if;
   end if;
-  select * into item from public.shopping_items where household_id=p_household and product_id=product_id and state in('suggested','planned','in_cart') for update;
+  select si.* into item from public.shopping_items si where si.household_id=p_household and si.product_id=product.id and si.state in('suggested','planned','in_cart') for update;
   if found then
    update public.shopping_items set state='planned',automatic=false,quantity=(p_data->>'quantity')::numeric,
     estimated_unit_price_cents=coalesce(nullif(p_data->>'estimated_unit_price_cents','')::bigint,estimated_unit_price_cents),fund_id=coalesce(nullif(p_data->>'fund_id','')::uuid,fund_id),
@@ -288,7 +288,7 @@ begin
     where id=product.id returning * into product;
     insert into public.inventory_events(household_id,product_id,delta,balance,reason,actor_id,actor_name,expense_id)
     values(p_household,product.id,item.quantity,product.on_hand,'Compra inteligente',uid,actor,expense_id);
-    update public.shopping_items set state='purchased',expense_id=expense_id,version=version+1,updated_at=now() where id=item.id;
+    update public.shopping_items set state='purchased',expense_id=expense.id,version=version+1,updated_at=now() where id=item.id;
    end loop;
   end loop;
   update public.shopping_lists set status='purchased',completed_at=now(),merchant=purchase.merchant where id=listid;
