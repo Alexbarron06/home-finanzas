@@ -1,4 +1,4 @@
-export const activeItems=data=>data.shopping_items.filter(x=>['pending','cart'].includes(x.state));
+export const activeItems=data=>data.shopping_items.filter(x=>['pending','cart','suggested','planned','in_cart'].includes(x.state));
 export function quantity(value,{zero=true}={}){
  if(!/^\d+(\.\d{1,3})?$/.test(String(value)))throw new Error('Usa una cantidad con hasta tres decimales.');
  const n=Number(value);if(!Number.isFinite(n)||n>1000000||n<0||(!zero&&n===0))throw new Error('Revisa la cantidad.');return n;
@@ -9,9 +9,9 @@ export function replenish(data,p){
  const existing=activeItems(data).find(x=>x.product_id===p.id);
  if(p.on_hand<=p.minimum&&p.target>p.on_hand){
   const q=Math.round((p.target-p.on_hand)*1000)/1000;
-  if(!existing)data.shopping_items.push({id:crypto.randomUUID(),product_id:p.id,quantity:q,unit_price_cents:null,state:'pending',automatic:true,version:1});
-  else if(existing.automatic&&existing.state==='pending'&&existing.quantity!==q){existing.quantity=q;existing.version++;}
- }else if(existing?.automatic&&existing.state==='pending'){existing.state='removed';existing.version++;}
+  if(!existing)data.shopping_items.push({id:crypto.randomUUID(),product_id:p.id,quantity:q,unit_price_cents:null,state:'suggested',automatic:true,priority:p.on_hand===0?'necessary':'next',reason:p.on_hand===0?'Producto terminado':'Stock bajo',version:1});
+  else if(existing.automatic&&['pending','suggested'].includes(existing.state)&&existing.quantity!==q){existing.quantity=q;existing.version++;}
+ }else if(existing?.automatic&&['pending','suggested'].includes(existing.state)){existing.state='skipped';existing.version++;}
 }
 export function demoCommand(data,action,x){
  const event=(p,delta,reason,expense_id=null)=>data.inventory_events.push({id:crypto.randomUUID(),product_id:p.id,delta,balance:p.on_hand,reason,expense_id,actor_name:'Demo',created_at:new Date().toISOString()});

@@ -1,0 +1,12 @@
+create index expense_items_fund_household on public.expense_items(fund_id,household_id);
+create index expense_items_household on public.expense_items(household_id);
+create index expense_items_product_household on public.expense_items(product_id,household_id);
+create index price_history_expense_item_household on public.product_price_history(expense_item_id,household_id);
+create index price_history_fund_household on public.product_price_history(fund_id,household_id);
+create index price_history_product_household on public.product_price_history(product_id,household_id);
+create index price_history_purchase_household on public.product_price_history(purchase_id,household_id);
+create index products_usual_fund_household on public.products(usual_fund_id,household_id);
+create index purchases_created_by on public.purchases(created_by);
+create index purchases_list_household on public.purchases(list_id,household_id);
+create index shopping_items_list_household on public.shopping_items(list_id,household_id);
+create index shopping_lists_created_by on public.shopping_lists(created_by);
