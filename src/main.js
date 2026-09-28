@@ -73,7 +73,8 @@ async function load(){
  if(!member){data=null;app.innerHTML=`<section class="auth card">${brand}<h1>Cuenta pendiente</h1><p>Tu cuenta todavía no está vinculada al hogar. Solicita que se habilite tu acceso.</p><button id="logout">Cerrar sesión</button></section>`;document.querySelector('#logout').onclick=logout;return;}
  const {data:household,error:err}=await db.from('households').select('*').eq('id',member.household_id).single();if(err)throw err;
  const {error:planError}=await db.rpc('sync_weekly_plan',{p_household:household.id});if(planError)throw planError;
- const {error:shoppingError}=await db.rpc('smart_shopping_command',{p_household:household.id,p_action:'sync',p_data:{}});if(shoppingError)throw shoppingError;
+ const {error:shoppingError}=await db.rpc('smart_shopping_command',{p_household:household.id,p_action:'sync',p_data:{}});
+ if(shoppingError){console.error('No fue posible sincronizar las sugerencias de compra.',shoppingError);banner='El hogar cargó correctamente, pero no se pudieron actualizar las sugerencias de compra.';}
  const [funds,expenses,reservations,products,shopping_items,shopping_lists,purchases,expense_items,product_price_history,inventory_events,expense_history,fund_deposits,weekly_payment_plans,weekly_payment_entries]=await Promise.all(['funds','expenses','reservations','products','shopping_items','shopping_lists','purchases','expense_items','product_price_history','inventory_events','expense_history','fund_deposits','weekly_payment_plans','weekly_payment_entries'].map(t=>readAll(t,household.id)));
  if(request!==loadSequence||session?.user.id!==userId||demo)return;
  data={household,funds,expenses,reservations,products,shopping_items,shopping_lists,purchases,expense_items,product_price_history,inventory_events,expense_history,fund_deposits,weekly_payment_plans,weekly_payment_entries};render();subscribe(household.id);

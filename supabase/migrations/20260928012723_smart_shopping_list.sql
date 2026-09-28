@@ -153,7 +153,7 @@ begin
  listid=private.ensure_active_shopping_list(p_household,uid);
 
  if p_action='sync' then
-  update public.shopping_items set state=case when state='pending' then case when automatic then 'suggested' else 'planned' end when 'cart' then 'in_cart' when 'bought' then 'purchased' when 'removed' then 'skipped' else state end,
+  update public.shopping_items set state=case state when 'pending' then case when automatic then 'suggested' else 'planned' end when 'cart' then 'in_cart' when 'bought' then 'purchased' when 'removed' then 'skipped' else state end,
    list_id=coalesce(list_id,listid),version=version+1,updated_at=now()
   where household_id=p_household and (state in('pending','cart','bought','removed') or list_id is null);
   update public.shopping_items s set state='skipped',version=s.version+1,updated_at=now()
