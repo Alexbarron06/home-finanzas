@@ -7,19 +7,11 @@ select id,'Servicios','service',0,date_trunc('month',current_date)::date
 from public.households
 on conflict(household_id,kind) do update set name=excluded.name;
 
-create temporary table service_expense_links on commit drop as
-select e.id as expense_id,e.reservation_id,e.household_id
-from public.expenses e
-join public.reservations r
-  on r.id=e.reservation_id
- and r.household_id=e.household_id
-where r.service_type is not null
-  and r.weekly_plan_id is null;
+alter table public.expenses
+  alter constraint expenses_reservation_id_fund_id_household_id_fkey
+  deferrable initially immediate;
 
-update public.expenses e
-set reservation_id=null
-from service_expense_links l
-where e.id=l.expense_id;
+set constraints expenses_reservation_id_fund_id_household_id_fkey deferred;
 
 update public.reservations r
 set fund_id=f.id
@@ -30,13 +22,15 @@ where f.household_id=r.household_id
   and r.weekly_plan_id is null;
 
 update public.expenses e
-set fund_id=f.id,
-    reservation_id=l.reservation_id
-from service_expense_links l
+set fund_id=f.id
+from public.reservations r
 join public.funds f
-  on f.household_id=l.household_id
+  on f.household_id=r.household_id
  and f.kind='service'
-where e.id=l.expense_id;
+where e.reservation_id=r.id
+  and e.household_id=r.household_id
+  and r.service_type is not null
+  and r.weekly_plan_id is null;
 
 create function public.validate_shopping_item_fund()
 returns trigger
