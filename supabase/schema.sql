@@ -2,6 +2,7 @@
 create table public.households (
  id uuid primary key default gen_random_uuid(), name text not null check(length(name) between 1 and 100),
  service_budget_cents bigint check(service_budget_cents is null or service_budget_cents between 1 and 100000000),
+ service_period_budget_cents bigint check(service_period_budget_cents is null or service_period_budget_cents between 1 and 100000000),
  created_at timestamptz not null default now()
 );
 create table public.memberships (
@@ -45,7 +46,7 @@ alter table public.reservations enable row level security;
 alter table public.expenses enable row level security;
 revoke all on public.households,public.memberships,public.funds,public.reservations,public.expenses from anon,authenticated;
 grant select on public.households,public.memberships,public.funds,public.reservations,public.expenses to authenticated;
-grant update(service_budget_cents) on public.households to authenticated;
+grant update(service_budget_cents,service_period_budget_cents) on public.households to authenticated;
 grant insert(id,household_id,fund_id,description,amount_cents,due_on,service_type,service_provider,cutoff_on,created_by) on public.reservations to authenticated;
 grant insert(id,household_id,fund_id,description,amount_cents,category,method,occurred_on,reservation_id,created_by) on public.expenses to authenticated;
 create policy own_membership on public.memberships for select to authenticated using(user_id=(select auth.uid()));
