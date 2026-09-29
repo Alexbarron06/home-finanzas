@@ -34,6 +34,15 @@ export function monthlyServiceSummary(budgetCents, reservations, expenses, month
   return {budgetCents, paidCents, pendingCents, committedCents, availableCents:budgetCents - committedCents};
 }
 
+export function periodServiceSummary(budgetCents, reservations, expenses, startsOn, nextOn) {
+  const records = serviceRecords(reservations, expenses)
+    .filter(record => record.due_on >= startsOn && record.due_on < nextOn);
+  const paidCents = records.filter(record => record.paidExpense).reduce((sum, record) => sum + record.amount_cents, 0);
+  const pendingCents = records.filter(record => !record.paidExpense).reduce((sum, record) => sum + record.amount_cents, 0);
+  const committedCents = paidCents + pendingCents;
+  return {budgetCents, paidCents, pendingCents, committedCents, availableCents:budgetCents - committedCents};
+}
+
 export function validateServiceDraft(draft) {
   if (!SERVICE_TYPES.some(([type]) => type === draft.service_type)) throw new Error('Selecciona un tipo de servicio válido.');
   if (!draft.description?.trim()) throw new Error('Escribe el nombre del servicio.');
