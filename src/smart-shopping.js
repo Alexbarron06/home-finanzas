@@ -59,6 +59,19 @@ export function demoSmartCommand(data,action,x){
     else{product={...x,version:1,last_unit_price_cents:null,last_purchase_on:null};data.products.push(product);data.inventory_events.push({id:crypto.randomUUID(),product_id:product.id,delta:product.on_hand,balance:product.on_hand,reason:'Inventario inicial',actor_name:'Demo',created_at:new Date().toISOString()});}
     return product;
   }
+  if(action==='finish_and_plan'){
+    const product=data.products.find(row=>row.id===x.id);version(product);
+    const before=Number(product.on_hand);
+    if(before>0){product.on_hand=0;product.version++;data.inventory_events.push({id:crypto.randomUUID(),product_id:product.id,delta:-before,balance:0,reason:'Producto terminado',actor_name:'Demo',created_at:new Date().toISOString()});}
+    let item=null;
+    if(x.add_to_list!==false){
+      if(!Number.isFinite(Number(x.quantity))||Number(x.quantity)<=0)throw new Error('Indica una cantidad para comprar mayor a cero.');
+      item=data.shopping_items.find(row=>row.product_id===product.id&&SMART_ACTIVE.includes(row.state));
+      if(item)Object.assign(item,{list_id:list.id,quantity:Number(x.quantity),estimated_unit_price_cents:item.estimated_unit_price_cents??product.estimated_unit_price_cents??product.last_unit_price_cents??null,fund_id:item.fund_id||product.usual_fund_id||null,state:item.state==='in_cart'?'in_cart':'planned',automatic:false,priority:'necessary',reason:'Producto terminado',version:item.version+1});
+      else{item={id:crypto.randomUUID(),list_id:list.id,product_id:product.id,quantity:Number(x.quantity),estimated_unit_price_cents:product.estimated_unit_price_cents??product.last_unit_price_cents??null,unit_price_cents:null,fund_id:product.usual_fund_id||null,state:'planned',automatic:false,priority:'necessary',reason:'Producto terminado',payment_method:'card',version:1};data.shopping_items.push(item);}
+    }
+    return {product,item};
+  }
   if(action==='add'){
     let product=data.products.find(row=>row.id===x.product_id);
     if(!product){product={id:x.new_product_id,name:x.name,category:x.category,unit:x.unit,on_hand:0,minimum:0,target:0,usual_purchase_quantity:x.quantity,estimated_unit_price_cents:x.estimated_unit_price_cents,usual_fund_id:x.fund_id,version:1};data.products.push(product);}
