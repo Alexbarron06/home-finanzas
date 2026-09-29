@@ -14,7 +14,10 @@ create table public.funds (
 create table public.reservations (
  id uuid primary key default gen_random_uuid(), household_id uuid not null references public.households(id), fund_id uuid not null,
  description text not null check(length(trim(description)) between 1 and 160), amount_cents bigint not null check(amount_cents between 1 and 100000000),
- due_on date not null, created_by uuid not null default auth.uid() references auth.users(id), created_at timestamptz not null default now(),
+ due_on date not null, service_type text check(service_type is null or service_type in ('electricity','water','telephone','internet','gas','streaming','other')),
+ service_provider text check(service_provider is null or length(trim(service_provider)) between 1 and 120), cutoff_on date,
+ created_by uuid not null default auth.uid() references auth.users(id), created_at timestamptz not null default now(),
+ check(service_type is null or cutoff_on is not null), check(cutoff_on is null or cutoff_on <= due_on),
  foreign key(fund_id,household_id) references public.funds(id,household_id), unique(id,fund_id,household_id)
 );
 create table public.expenses (
@@ -26,6 +29,7 @@ create table public.expenses (
  foreign key(reservation_id,fund_id,household_id) references public.reservations(id,fund_id,household_id)
 );
 create index reservations_household_due_idx on public.reservations(household_id,due_on);
+create index reservations_household_service_due_idx on public.reservations(household_id,service_type,due_on) where service_type is not null;
 create index expenses_household_date_idx on public.expenses(household_id,occurred_on);
 create index reservations_fund_idx on public.reservations(fund_id,household_id);
 create index expenses_fund_idx on public.expenses(fund_id,household_id);
@@ -39,7 +43,7 @@ alter table public.reservations enable row level security;
 alter table public.expenses enable row level security;
 revoke all on public.households,public.memberships,public.funds,public.reservations,public.expenses from anon,authenticated;
 grant select on public.households,public.memberships,public.funds,public.reservations,public.expenses to authenticated;
-grant insert(id,household_id,fund_id,description,amount_cents,due_on,created_by) on public.reservations to authenticated;
+grant insert(id,household_id,fund_id,description,amount_cents,due_on,service_type,service_provider,cutoff_on,created_by) on public.reservations to authenticated;
 grant insert(id,household_id,fund_id,description,amount_cents,category,method,occurred_on,reservation_id,created_by) on public.expenses to authenticated;
 create policy own_membership on public.memberships for select to authenticated using(user_id=(select auth.uid()));
 create policy household_read on public.households for select to authenticated using(id in(select household_id from public.memberships where user_id=(select auth.uid())));
