@@ -2,6 +2,7 @@ export const routes = [
  ['Inicio', 'inicio', '⌂'],
  ['Movimientos', 'movimientos', '↗'],
  ['Pagos', 'pagos', '▦'],
+ ['Servicios', 'servicios', '⚡'],
  ['Comprar', 'comprar', '▱'],
  ['Inventario', 'inventario', '▤'],
  ['Resumen', 'resumen', '◷'],
