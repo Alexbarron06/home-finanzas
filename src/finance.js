@@ -5,6 +5,7 @@ export function cents(value) {
   if (!Number.isSafeInteger(result) || result <= 0 || result > 100000000) throw new Error('El importe debe ser mayor a cero y no superar $1,000,000.');
   return result;
 }
+export const pantryFunds = funds => funds.filter(fund => fund.kind === 'salary' || fund.kind === 'voucher');
 // The start date of the salary fund anchors the estimated 15-day periods.
 export function periodAt(anchor, date, length = 15) {
   const parse = value => Date.parse(`${value}T00:00:00Z`);
