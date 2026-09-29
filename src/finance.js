@@ -13,9 +13,11 @@ export function periodAt(anchor, date, length = 15) {
   const iso = ms => new Date(ms).toISOString().slice(0, 10);
   return {startsOn: iso(parse(anchor) + index * length * 86400000), nextOn: iso(parse(anchor) + (index + 1) * length * 86400000)};
 }
-export function summary(fund, expenses, reservations, periodEndExclusive, deposits = [], allocations = []) {
-  const spent = expenses.filter(e => e.fund_id === fund.id).reduce((s, e) => s + e.amount_cents, 0);
-  const deposited = deposits.filter(e => e.fund_id === fund.id).reduce((s, e) => s + e.amount_cents, 0);
+export function summary(fund, expenses, reservations, periodEndExclusive, deposits = [], allocations = [], periodStartInclusive = null) {
+  const isCurrentExpense = expense => !periodStartInclusive || expense.occurred_on >= periodStartInclusive;
+  const isCurrentDeposit = deposit => !periodStartInclusive || deposit.received_on >= periodStartInclusive;
+  const spent = expenses.filter(e => e.fund_id === fund.id && isCurrentExpense(e)).reduce((s, e) => s + e.amount_cents, 0);
+  const deposited = deposits.filter(e => e.fund_id === fund.id && isCurrentDeposit(e)).reduce((s, e) => s + e.amount_cents, 0);
   const allocated = allocations.reduce((s, e) => s + e.amount_cents, 0);
   const paid = new Set(expenses.map(e => e.reservation_id).filter(Boolean));
   // Past due bills stay reserved; a bill due in a later period is only a forecast.
