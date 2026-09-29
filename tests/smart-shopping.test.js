@@ -4,7 +4,7 @@ import {cartBreakdown,budgetMessages,consumptionEstimate,demoSmartCommand,itemTo
 
 const base=()=>({
  household:{id:'home'},
- funds:[{id:'salary',name:'Nómina',kind:'salary'},{id:'voucher',name:'Vales',kind:'voucher'}],
+ funds:[{id:'salary',name:'Nómina',kind:'salary'},{id:'voucher',name:'Vales',kind:'voucher'},{id:'service',name:'Servicios',kind:'service'}],
  products:[{id:'rice',name:'Arroz',category:'Despensa',unit:'paquete',on_hand:0,minimum:1,target:2,usual_purchase_quantity:1,estimated_unit_price_cents:4500,usual_fund_id:'salary',version:1}],
  shopping_items:[],shopping_lists:[],purchases:[],expense_items:[],product_price_history:[],expenses:[],inventory_events:[]
 });
@@ -25,6 +25,7 @@ test('cart keeps salary and vouchers separated and warns only the depleted fund'
  ];
  const available={salary:95700,voucher:20000};
  const result=cartBreakdown(data,fund=>({available:available[fund.id]}));
+ assert.deepEqual(result.byFund.map(row=>row.fund.id),['salary','voucher']);
  assert.equal(result.total,84600);assert.equal(result.byFund[0].spent,55000);assert.equal(result.byFund[1].spent,29600);
  assert.match(budgetMessages(result).join(' '),/Vales/);
 });
