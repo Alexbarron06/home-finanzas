@@ -21,3 +21,24 @@ test('deposits add funds and weekly allocations reduce them once',()=>{
  const allocations=[{amount_cents:326700}];
  assert.deepEqual(summary(fund,[],[],undefined,deposits,allocations),{spent:0,deposited:600000,allocated:326700,reserved:0,balance:873300,available:873300});
 });
+
+test('a new fund period starts from its declared balance without carrying prior activity',()=>{
+ const fund={id:'salary',opening_cents:600000,starts_on:'2026-09-29'};
+ const expenses=[
+  {id:'old',fund_id:'salary',amount_cents:300000,occurred_on:'2026-09-28',reservation_id:'paid-old'},
+  {id:'current',fund_id:'salary',amount_cents:50000,occurred_on:'2026-09-29'},
+ ];
+ const reservations=[{id:'paid-old',fund_id:'salary',amount_cents:300000,due_on:'2026-09-28'}];
+ const deposits=[
+  {fund_id:'salary',amount_cents:100000,received_on:'2026-09-28'},
+  {fund_id:'salary',amount_cents:200000,received_on:'2026-09-29'},
+ ];
+ assert.deepEqual(summary(fund,expenses,reservations,'2026-10-14',deposits,[],fund.starts_on),{
+  spent:50000,
+  deposited:200000,
+  allocated:0,
+  reserved:0,
+  balance:750000,
+  available:750000,
+ });
+});
