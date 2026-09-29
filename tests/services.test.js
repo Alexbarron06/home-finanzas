@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {monthlyServiceSummary, pantryActivity, serviceRecords, serviceType, validateServiceDraft} from '../src/services.js';
+import {monthlyServiceSummary, periodServiceSummary, pantryActivity, serviceRecords, serviceType, validateServiceDraft} from '../src/services.js';
 
 test('lists only service reservations and marks their payment', () => {
   const reservations = [
@@ -50,5 +50,21 @@ test('calculates the fixed monthly service budget from bills due that month', ()
     pendingCents:50000,
     committedCents:130000,
     availableCents:70000,
+  });
+});
+
+test('calculates services only inside the active fortnight', () => {
+  const reservations = [
+    {id:'old', service_type:'water', amount_cents:20000, due_on:'2026-09-28', weekly_plan_id:null},
+    {id:'gas', service_type:'gas', amount_cents:28600, due_on:'2026-10-03', weekly_plan_id:null},
+    {id:'light', service_type:'electricity', amount_cents:791700, due_on:'2026-10-04', weekly_plan_id:null},
+    {id:'next', service_type:'telephone', amount_cents:50000, due_on:'2026-10-14', weekly_plan_id:null},
+  ];
+  assert.deepEqual(periodServiceSummary(500000, reservations, [], '2026-09-29', '2026-10-14'), {
+    budgetCents:500000,
+    paidCents:0,
+    pendingCents:820300,
+    committedCents:820300,
+    availableCents:-320300,
   });
 });
