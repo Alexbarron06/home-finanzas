@@ -10,7 +10,7 @@ create table public.memberships (
 create index memberships_household_idx on public.memberships(household_id);
 create table public.funds (
  id uuid primary key default gen_random_uuid(), household_id uuid not null references public.households(id), name text not null,
- kind text not null check(kind in ('salary','voucher')), opening_cents bigint not null check(opening_cents between 0 and 100000000),
+ kind text not null check(kind in ('salary','voucher','service')), opening_cents bigint not null check(opening_cents between 0 and 100000000),
  starts_on date not null, created_at timestamptz not null default now(), unique(id,household_id), unique(household_id,kind)
 );
 create table public.reservations (
