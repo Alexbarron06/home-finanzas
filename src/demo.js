@@ -1,7 +1,7 @@
 export function demoData() {
   const today = new Date().toLocaleDateString('en-CA');
   return {
-    household: { id:'demo', name:'Hogar de demostración' },
+    household: { id:'demo', name:'Hogar de demostración', service_budget_cents:300000 },
     funds:[{ id:'salary', name:'Nómina', kind:'salary', opening_cents:480000, starts_on:today },{id:'voucher',name:'Vales',kind:'voucher',opening_cents:125000,starts_on:today}],
     expenses:[{id:'example',fund_id:'salary',description:'Compra de ejemplo',category:'Despensa',amount_cents:42550,method:'card',occurred_on:today,created_by:'demo'}],
     products:[], shopping_items:[], shopping_lists:[], purchases:[], expense_items:[], product_price_history:[], inventory_events:[], expense_history:[], fund_deposits:[], weekly_payment_entries:[],
