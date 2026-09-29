@@ -18,6 +18,22 @@ export function serviceRecords(reservations, expenses) {
     .sort((a, b) => Number(Boolean(a.paidExpense)) - Number(Boolean(b.paidExpense)) || a.due_on.localeCompare(b.due_on));
 }
 
+export function pantryActivity(reservations, expenses) {
+  const serviceReservationIds = new Set(reservations.filter(reservation => reservation.service_type).map(reservation => reservation.id));
+  return {
+    reservations:reservations.filter(reservation => !reservation.service_type),
+    expenses:expenses.filter(expense => !serviceReservationIds.has(expense.reservation_id)),
+  };
+}
+
+export function monthlyServiceSummary(budgetCents, reservations, expenses, month) {
+  const records = serviceRecords(reservations, expenses).filter(record => record.due_on.startsWith(month));
+  const paidCents = records.filter(record => record.paidExpense).reduce((sum, record) => sum + record.amount_cents, 0);
+  const pendingCents = records.filter(record => !record.paidExpense).reduce((sum, record) => sum + record.amount_cents, 0);
+  const committedCents = paidCents + pendingCents;
+  return {budgetCents, paidCents, pendingCents, committedCents, availableCents:budgetCents - committedCents};
+}
+
 export function validateServiceDraft(draft) {
   if (!SERVICE_TYPES.some(([type]) => type === draft.service_type)) throw new Error('Selecciona un tipo de servicio válido.');
   if (!draft.description?.trim()) throw new Error('Escribe el nombre del servicio.');
