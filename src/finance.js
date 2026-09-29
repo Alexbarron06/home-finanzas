@@ -16,9 +16,10 @@ export function periodAt(anchor, date, length = 15) {
 export function summary(fund, expenses, reservations, periodEndExclusive, deposits = [], allocations = [], periodStartInclusive = null) {
   const isCurrentExpense = expense => !periodStartInclusive || expense.occurred_on >= periodStartInclusive;
   const isCurrentDeposit = deposit => !periodStartInclusive || deposit.received_on >= periodStartInclusive;
+  const isCurrentAllocation = allocation => !periodStartInclusive || allocation.effective_on >= periodStartInclusive;
   const spent = expenses.filter(e => e.fund_id === fund.id && isCurrentExpense(e)).reduce((s, e) => s + e.amount_cents, 0);
   const deposited = deposits.filter(e => e.fund_id === fund.id && isCurrentDeposit(e)).reduce((s, e) => s + e.amount_cents, 0);
-  const allocated = allocations.reduce((s, e) => s + e.amount_cents, 0);
+  const allocated = allocations.filter(isCurrentAllocation).reduce((s, e) => s + e.amount_cents, 0);
   const paid = new Set(expenses.map(e => e.reservation_id).filter(Boolean));
   // Past due bills stay reserved; a bill due in a later period is only a forecast.
   const reserved = reservations.filter(r => r.fund_id === fund.id && !paid.has(r.id) && (!periodEndExclusive || r.due_on < periodEndExclusive)).reduce((s, r) => s + r.amount_cents, 0);
