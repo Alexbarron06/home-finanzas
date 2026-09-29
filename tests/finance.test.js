@@ -33,12 +33,16 @@ test('a new fund period starts from its declared balance without carrying prior 
   {fund_id:'salary',amount_cents:100000,received_on:'2026-09-28'},
   {fund_id:'salary',amount_cents:200000,received_on:'2026-09-29'},
  ];
- assert.deepEqual(summary(fund,expenses,reservations,'2026-10-14',deposits,[],fund.starts_on),{
+ const allocations=[
+  {amount_cents:100000,effective_on:'2026-09-28'},
+  {amount_cents:326700,effective_on:'2026-09-29'},
+ ];
+ assert.deepEqual(summary(fund,expenses,reservations,'2026-10-14',deposits,allocations,fund.starts_on),{
   spent:50000,
   deposited:200000,
-  allocated:0,
+  allocated:326700,
   reserved:0,
-  balance:750000,
-  available:750000,
+  balance:423300,
+  available:423300,
  });
 });
