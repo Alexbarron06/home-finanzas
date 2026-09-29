@@ -1,3 +1,5 @@
+import {pantryFunds} from './finance.js';
+
 export const SMART_ACTIVE = ['suggested','planned','in_cart'];
 export const smartItems = data => data.shopping_items.filter(item => SMART_ACTIVE.includes(item.state));
 export const itemTotal = (item, projected=false) => {
@@ -9,7 +11,7 @@ export const priorityLabel = value => ({necessary:'Necesario',next:'Próximo',re
 
 export function cartBreakdown(data, fundSummary){
   const cart=smartItems(data).filter(item=>item.state==='in_cart');
-  const byFund=data.funds.map(fund=>{
+  const byFund=pantryFunds(data.funds).map(fund=>{
     const spent=cart.filter(item=>item.fund_id===fund.id).reduce((sum,item)=>sum+(itemTotal(item)||0),0);
     const available=fundSummary(fund).available;
     return {fund,spent,available,after:available-spent};
