@@ -44,3 +44,15 @@ test('consumption estimate uses inventory history without an external model',()=
  const events=[{product_id:'milk',delta:-1,created_at:'2026-09-14T00:00:00Z'},{product_id:'milk',delta:-1,created_at:'2026-09-21T00:00:00Z'}];
  assert.equal(consumptionEstimate(product,events).daysLeft,7);
 });
+
+test('finishing a product sets stock to zero and plans the chosen quantity once',()=>{
+ const data=base();data.products[0].on_hand=1;data.products[0].usual_purchase_quantity=3;
+ demoSmartCommand(data,'finish_and_plan',{id:'rice',version:1,add_to_list:true,quantity:5});
+ assert.equal(data.products[0].on_hand,0);
+ assert.equal(data.inventory_events.at(-1).delta,-1);
+ assert.equal(data.shopping_items.length,1);
+ assert.equal(data.shopping_items[0].quantity,5);
+ assert.equal(data.shopping_items[0].state,'planned');
+ assert.equal(data.shopping_items[0].priority,'necessary');
+ assert.equal(data.expenses.length,0);
+});
