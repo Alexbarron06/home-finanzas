@@ -2,9 +2,17 @@ import {pantryFunds} from './finance.js';
 
 export const SMART_ACTIVE = ['suggested','planned','in_cart'];
 export const smartItems = data => data.shopping_items.filter(item => SMART_ACTIVE.includes(item.state));
+export const totalFromUnitPrice = (quantity,unitPriceCents) => Math.round(Number(quantity)*Number(unitPriceCents));
+export const unitPriceFromTotal = (quantity,totalPriceCents) => {
+  const units=Number(quantity),total=Number(totalPriceCents);
+  if(!Number.isFinite(units)||units<=0||!Number.isFinite(total)||total<0)throw new Error('Cantidad o precio total no válido.');
+  return Math.round(total/units);
+};
 export const itemTotal = (item, projected=false) => {
-  const price = projected ? (item.estimated_unit_price_cents ?? item.unit_price_cents) : item.unit_price_cents;
-  return price === null || price === undefined ? null : Math.round(Number(item.quantity) * Number(price));
+  const total=projected?(item.estimated_total_price_cents??item.total_price_cents):item.total_price_cents;
+  if(total!==null&&total!==undefined)return Number(total);
+  const price=projected?(item.estimated_unit_price_cents??item.unit_price_cents):item.unit_price_cents;
+  return price===null||price===undefined?null:totalFromUnitPrice(item.quantity,price);
 };
 export const priorityOrder = {necessary:0,next:1,recurring:2,optional:3};
 export const priorityLabel = value => ({necessary:'Necesario',next:'Próximo',recurring:'Recurrente',optional:'Opcional'})[value] || 'Opcional';
@@ -78,8 +86,8 @@ export function demoSmartCommand(data,action,x){
     let product=data.products.find(row=>row.id===x.product_id);
     if(!product){product={id:x.new_product_id,name:x.name,category:x.category,unit:x.unit,on_hand:0,minimum:0,target:0,usual_purchase_quantity:x.quantity,estimated_unit_price_cents:x.estimated_unit_price_cents,usual_fund_id:x.fund_id,version:1};data.products.push(product);}
     let item=data.shopping_items.find(row=>row.product_id===product.id&&SMART_ACTIVE.includes(row.state));
-    if(item)Object.assign(item,{quantity:x.quantity,estimated_unit_price_cents:x.estimated_unit_price_cents,fund_id:x.fund_id,state:'planned',automatic:false,version:item.version+1});
-    else{item={id:crypto.randomUUID(),list_id:list.id,product_id:product.id,quantity:x.quantity,estimated_unit_price_cents:x.estimated_unit_price_cents,unit_price_cents:null,fund_id:x.fund_id,state:'planned',automatic:false,priority:'optional',reason:'Agregado manualmente',payment_method:'card',version:1};data.shopping_items.push(item);}
+    if(item)Object.assign(item,{quantity:x.quantity,estimated_unit_price_cents:x.estimated_unit_price_cents,estimated_total_price_cents:x.estimated_total_price_cents,fund_id:x.fund_id,state:'planned',automatic:false,version:item.version+1});
+    else{item={id:crypto.randomUUID(),list_id:list.id,product_id:product.id,quantity:x.quantity,estimated_unit_price_cents:x.estimated_unit_price_cents,estimated_total_price_cents:x.estimated_total_price_cents,unit_price_cents:null,total_price_cents:null,fund_id:x.fund_id,state:'planned',automatic:false,priority:'optional',reason:'Agregado manualmente',payment_method:'card',version:1};data.shopping_items.push(item);}
     return item;
   }
   if(action==='add_suggested'){for(const item of data.shopping_items.filter(row=>row.state==='suggested'&&(!x.id||row.id===x.id))){item.state='planned';item.automatic=false;item.version++;}return list;}

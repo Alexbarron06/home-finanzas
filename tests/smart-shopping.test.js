@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cartBreakdown,budgetMessages,consumptionEstimate,demoSmartCommand,itemTotal} from '../src/smart-shopping.js';
+import {cartBreakdown,budgetMessages,consumptionEstimate,demoSmartCommand,itemTotal,totalFromUnitPrice,unitPriceFromTotal} from '../src/smart-shopping.js';
 
 const base=()=>({
  household:{id:'home'},
@@ -28,6 +28,13 @@ test('cart keeps salary and vouchers separated and warns only the depleted fund'
  assert.deepEqual(result.byFund.map(row=>row.fund.id),['salary','voucher']);
  assert.equal(result.total,84600);assert.equal(result.byFund[0].spent,55000);assert.equal(result.byFund[1].spent,29600);
  assert.match(budgetMessages(result).join(' '),/Vales/);
+});
+
+test('an explicit total is exact and keeps a useful unit price',()=>{
+ assert.equal(unitPriceFromTotal(3,5000),1667);
+ assert.equal(totalFromUnitPrice(3,1667),5001);
+ assert.equal(itemTotal({quantity:3,unit_price_cents:1667,total_price_cents:5000}),5000);
+ assert.equal(itemTotal({quantity:3,estimated_unit_price_cents:1667,estimated_total_price_cents:5000},true),5000);
 });
 
 test('checkout is idempotent and updates item detail and stock once',()=>{
